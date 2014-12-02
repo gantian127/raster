@@ -36,14 +36,12 @@ def get_raster_meta_dict(raster_file_name):
 
     # get the metadata info from raster dataset
     spatial_coverage_info = get_spatial_coverage_info(raster_dataset)
-    cell_info = get_cell_info(raster_dataset)
-    band_info = get_band_info(raster_dataset)
+    cell_and_band_info = get_cell_and_band_info(raster_dataset)
 
     # write meta as dictionary
     raster_meta_dict = {
         'spatial_coverage_info': spatial_coverage_info,
-        'cell_info': cell_info,
-        'band_info': band_info
+        'cell_and_band_info': cell_and_band_info,
     }
 
     return raster_meta_dict
@@ -68,7 +66,7 @@ def get_spatial_coverage_info(raster_dataset):
         unit = ''
         projection = ''
 
-    # get 4 corners (x,y) coordinate
+    # get the bounding box
     gt = raster_dataset.GetGeoTransform()
     cols = raster_dataset.RasterXSize
     rows = raster_dataset.RasterYSize
@@ -83,8 +81,6 @@ def get_spatial_coverage_info(raster_dataset):
             x_coor.append(x)
             y_coor.append(y)
         yarr.reverse()
-
-    # get the bounding box
     northlimit = max(y_coor)  # max y
     southlimit = min(y_coor)
     westlimit = min(x_coor)  # min x
@@ -102,17 +98,19 @@ def get_spatial_coverage_info(raster_dataset):
     return spatial_coverage_info
 
 
-
-def get_cell_info(raster_dataset):
+def get_cell_and_band_info(raster_dataset):
     """
     (object) --> dict
 
     Return: meta info of cells in raster
     """
+    # get cell size info
     rows = raster_dataset.RasterYSize
     columns = raster_dataset.RasterXSize
     cell_size_x_value = raster_dataset.GetGeoTransform()[1]
     cell_size_y_value = abs(raster_dataset.GetGeoTransform()[5])
+
+
     # get coordinate system unit info
     proj_wkt = raster_dataset.GetProjection()
     if proj_wkt:
@@ -122,36 +120,25 @@ def get_cell_info(raster_dataset):
     else:
         cell_size_unit = ''
 
-    cell_info = {
+    # get band count, cell no data value, cell data type
+    band_count = raster_dataset.RasterCount
+    band = raster_dataset.GetRasterBand(1)
+    no_data_value = band.GetNoDataValue()
+    cell_data_type = gdal.GetDataTypeName(band.DataType)
+
+    cell_and_band_info = {
         'rows': rows,
         'columns': columns,
         'cellSizeXValue': cell_size_x_value,
         'cellSizeYValue': cell_size_y_value,
         'cellSizeUnit': cell_size_unit,
+        'cellDataType': cell_data_type,
+        'noDataValue': no_data_value,
+        'band_count': band_count
     }
 
-    return cell_info
+    return cell_and_band_info
 
 
-def get_band_info(raster_dataset):
-    """
-    (object) --> list
 
-    Return: meta info for all the bands in raster
-    """
-    band_count = raster_dataset.RasterCount
-    band_info = []
-
-    for index in range(1, band_count+1):
-        band = raster_dataset.GetRasterBand(index)
-        band_name = 'Band_'+str(index)
-        no_data_value = band.GetNoDataValue()
-        variable_data_type = gdal.GetDataTypeName(band.DataType)
-        band_info.append({
-            'bandName': band_name,
-            'noDataValue': no_data_value,
-            'variableDataType': variable_data_type
-        })
-
-    return band_info
 
