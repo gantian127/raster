@@ -126,16 +126,16 @@ def get_cell_and_band_info(raster_dataset):
     no_data_value = band.GetNoDataValue()
     cell_data_type = gdal.GetDataTypeName(band.DataType)
 
-    cell_and_band_info = {
-        'rows': rows,
-        'columns': columns,
-        'cellSizeXValue': cell_size_x_value,
-        'cellSizeYValue': cell_size_y_value,
-        'cellSizeUnit': cell_size_unit,
-        'cellDataType': cell_data_type,
-        'noDataValue': no_data_value,
-        'band_count': band_count
-    }
+    cell_and_band_info = OrderedDict([
+        ('rows', rows),
+        ('columns', columns),
+        ('cellSizeXValue', cell_size_x_value),
+        ('cellSizeYValue', cell_size_y_value),
+        ('cellSizeUnit', cell_size_unit),
+        ('cellDataType', cell_data_type),
+        ('noDataValue', no_data_value),
+        ('band_count', band_count)
+    ])
 
     return cell_and_band_info
 
