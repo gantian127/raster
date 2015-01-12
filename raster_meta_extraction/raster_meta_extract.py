@@ -10,6 +10,7 @@ from gdalconst import *
 from osgeo import osr
 import json
 from collections import OrderedDict
+import re
 
 
 def get_raster_meta_json(raster_file_name):
@@ -56,12 +57,24 @@ def get_spatial_coverage_info(raster_dataset):
 
     # get horizontal projection and unit info
     proj_wkt = raster_dataset.GetProjection()
+
     if proj_wkt:
         spatial_ref = osr.SpatialReference()
         spatial_ref.ImportFromWkt(proj_wkt)
+
+        # get unit info anc check spelling
         unit = spatial_ref.GetAttrValue("UNIT", 0)
-        projection = spatial_ref.GetAttrValue("PROJECTION", 0) if spatial_ref.GetAttrValue("PROJECTION", 0) \
-            else spatial_ref.GetAttrValue("DATUM", 0)
+        if re.match('metre', unit, re.I):
+            unit = 'meter'
+
+        # get projection info
+        if spatial_ref.GetAttrValue('PROJCS'):
+            proj = spatial_ref.GetAttrValue("PROJECTION", 0) if spatial_ref.GetAttrValue("PROJECTION", 0) else ''
+            projection = spatial_ref.GetAttrValue("PROJCS", 0) + ' ' + proj
+        else:
+            datum = spatial_ref.GetAttrValue("GEOGCS", 0) if spatial_ref.GetAttrValue("DATUM", 0) else ''
+            proj = spatial_ref.GetAttrValue("PROJECTION", 0) if spatial_ref.GetAttrValue("PROJECTION", 0) else ''
+            projection = datum + ' '+proj
     else:
         unit = ''
         projection = ''
@@ -86,14 +99,14 @@ def get_spatial_coverage_info(raster_dataset):
     westlimit = min(x_coor)  # min x
     eastlimit = max(x_coor)
 
-    spatial_coverage_info = {
-        'northlimit': northlimit,
-        'southlimit': southlimit,
-        'eastlimit': eastlimit,
-        'westlimit': westlimit,
-        'projection': projection,
-        'unit': unit
-    }
+    spatial_coverage_info = OrderedDict([
+        ('northlimit', northlimit),
+        ('southlimit', southlimit),
+        ('eastlimit', eastlimit),
+        ('westlimit', westlimit),
+        ('projection', projection),
+        ('unit', unit)
+    ])
 
     return spatial_coverage_info
 
@@ -117,6 +130,8 @@ def get_cell_and_band_info(raster_dataset):
         spatial_ref = osr.SpatialReference()
         spatial_ref.ImportFromWkt(proj_wkt)
         cell_size_unit = spatial_ref.GetAttrValue("UNIT", 0)
+        if re.match('metre', cell_size_unit, re.I):
+            cell_size_unit = 'meter'
     else:
         cell_size_unit = ''
 
