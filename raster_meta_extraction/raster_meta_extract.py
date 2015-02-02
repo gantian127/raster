@@ -1,7 +1,12 @@
 """
 Module extracting metadata from raster file to complete part of the required HydroShare Raster Science Metadata.
 The expected metadata elements are defined in the HydroShare raster resource specification.
+
+Reference code:
+http://gis.stackexchange.com/questions/6669/converting-projected-geotiff-to-wgs84-with-gdal-and-python
+http://gis.stackexchange.com/questions/57834/how-to-get-raster-corner-coordinates-using-python-gdal-bindings
 """
+
 __author__ = 'Tian Gan'
 
 
@@ -52,9 +57,23 @@ def get_spatial_coverage_info(raster_dataset):
     """
     (object) --> dict
 
-    Return: meta of spatial extent and projection of raster
+    Return: meta of spatial extent and projection of raster includes both original info and wgs84 info
     """
+    original_coverage_info = get_original_coverage_info(raster_dataset)
+    wgs84_coverage_info = get_wgs84_coverage_info(raster_dataset)
+    spatial_coverage_info = {
+        'original_coverage_info': original_coverage_info,
+        'wgs84_coverage_info': wgs84_coverage_info
+    }
+    return spatial_coverage_info
 
+
+def get_original_coverage_info(raster_dataset):
+    """
+    (object) --> dict
+
+    Return: meta of original projection and spatial extent of raster
+    """
     # get horizontal projection and unit info
     proj_wkt = raster_dataset.GetProjection()
 
@@ -62,7 +81,7 @@ def get_spatial_coverage_info(raster_dataset):
         spatial_ref = osr.SpatialReference()
         spatial_ref.ImportFromWkt(proj_wkt)
 
-        # get unit info anc check spelling
+        # get unit info and check spelling
         unit = spatial_ref.GetAttrValue("UNIT", 0)
         if re.match('metre', unit, re.I):
             unit = 'meter'
@@ -99,7 +118,7 @@ def get_spatial_coverage_info(raster_dataset):
     westlimit = min(x_coor)  # min x
     eastlimit = max(x_coor)
 
-    spatial_coverage_info = OrderedDict([
+    original_coverage_info = OrderedDict([
         ('northlimit', northlimit),
         ('southlimit', southlimit),
         ('eastlimit', eastlimit),
@@ -108,8 +127,68 @@ def get_spatial_coverage_info(raster_dataset):
         ('unit', unit)
     ])
 
-    return spatial_coverage_info
+    return original_coverage_info
 
+
+def get_wgs84_coverage_info(raster_dataset):
+    """
+    (object) --> dict
+
+    Return: meta of spatial extent in wgs84 web mercator projection of raster
+    """
+    # get original coordinate system
+    original_cs = osr.SpatialReference()
+    original_cs.ImportFromWkt(raster_dataset.GetProjection())
+
+    # create wgs84 coordinate system
+    wgs84_wkt = """
+    PROJCS["WGS 84 / Pseudo-Mercator",
+        GEOGCS["WGS 84",
+            DATUM["WGS_1984",
+                SPHEROID["WGS 84",6378137,298.257223563,
+                    AUTHORITY["EPSG","7030"]],
+                AUTHORITY["EPSG","6326"]],
+            PRIMEM["Greenwich",0,
+                AUTHORITY["EPSG","8901"]],
+            UNIT["degree",0.0174532925199433,
+                AUTHORITY["EPSG","9122"]],
+            AUTHORITY["EPSG","4326"]],
+        PROJECTION["Mercator_1SP"],
+        PARAMETER["central_meridian",0],
+        PARAMETER["scale_factor",1],
+        PARAMETER["false_easting",0],
+        PARAMETER["false_northing",0],
+        UNIT["metre",1,AUTHORITY["EPSG","9001"]],
+        AXIS["X",EAST],
+        AXIS["Y",NORTH],
+        EXTENSION["PROJ4","+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs"],
+        AUTHORITY["EPSG","3857"]]"""
+    wgs84_cs = osr.SpatialReference()
+    wgs84_cs.ImportFromWkt(wgs84_wkt)
+
+    # get original bounding box info
+    original_coverage_info = get_original_coverage_info(raster_dataset)
+    original_northlimit = original_coverage_info['northlimit']
+    original_southlimit = original_coverage_info['southlimit']
+    original_westlimit = original_coverage_info['westlimit']
+    original_eastlimit = original_coverage_info['eastlimit']
+
+    # create transform object
+    transform = osr.CoordinateTransformation(original_cs, wgs84_cs)
+
+    # transform original bounding box to wgs84 bounding box
+    wgs84_westlimit,wgs84_northlimit = transform.TransformPoint(original_westlimit, original_northlimit)[:2]
+    wgs84_eastlimit,wgs84_southlimit = transform.TransformPoint(original_eastlimit, original_southlimit)[:2]
+
+
+    wgs84_coverage_info = OrderedDict([
+        ('northlimit', wgs84_northlimit),
+        ('southlimit', wgs84_southlimit),
+        ('eastlimit', wgs84_eastlimit),
+        ('westlimit', wgs84_westlimit)
+    ])
+
+    return wgs84_coverage_info
 
 def get_cell_and_band_info(raster_dataset):
     """
