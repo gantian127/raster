@@ -163,7 +163,9 @@ def get_wgs84_coverage_info(raster_dataset):
         ('northlimit', wgs84_northlimit),
         ('southlimit', wgs84_southlimit),
         ('eastlimit', wgs84_eastlimit),
-        ('westlimit', wgs84_westlimit)
+        ('westlimit', wgs84_westlimit),
+        ('units','degree'),
+        ('projection', 'WGS 84')
     ])
 
     return wgs84_coverage_info
