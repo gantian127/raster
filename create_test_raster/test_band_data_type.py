@@ -26,11 +26,9 @@ dst_ds.SetProjection(srs.ExportToWkt())
 raster1 = numpy.zeros((512, 512), dtype=numpy.uint8)
 dst_ds.GetRasterBand(1).WriteArray(raster1)
 
-raster2 = numpy.ones((512, 512), dtype=numpy.float32)
+raster2 = numpy.ones((512, 512), dtype=numpy.uint8)
 dst_ds.GetRasterBand(2).WriteArray(raster2)
 
-print dst_ds.GetRasterBand(1).GetNoDataValue()
-print dst_ds.GetRasterBand(2).GetNoDataValue()
 
 ## close properly the dataset
 dst_ds = None
